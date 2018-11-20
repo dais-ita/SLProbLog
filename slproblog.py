@@ -20,15 +20,32 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import sys
 import argparse
+import mpmath
+from BetaDistribution.BetaDistribution import BetaDistribution
 
 from SLProbLog.SLProbLog import SLProbLog
+
+def outprint(res):
+    for k,v in res.items():
+        if isinstance(v, list):
+            print("%-12s [%-23s %-23s %-23s %s]\t" % (k, mpmath.nstr(v[0], mpmath.mp.dps),
+                                                            mpmath.nstr(v[1], mpmath.mp.dps),
+                                                            mpmath.nstr(v[2], mpmath.mp.dps),
+                                                            mpmath.nstr(v[3], mpmath.mp.dps)))
+        elif isinstance(v, BetaDistribution):
+            print("%-12s [%-23s %-23s]\t" % (k, mpmath.nstr(v.mean(), mpmath.mp.dps), mpmath.nstr(v.variance(), mpmath.mp.dps)))
+        else:
+            raise Exception("Unclear data: %s" % (repr(v)))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("file", help="Input file")
     parser.add_argument("-slop", "--subjective-logic-operators", help="Use SL Operators instead of Beta-based", action="store_true")
+    parser.add_argument("-slout", "--subjective-logic-output", help="Output as Subjective Logic Opinions",
+                        action="store_true")
+
 
     args = parser.parse_args()
 
@@ -37,6 +54,6 @@ if __name__ == '__main__':
         p = f.read()
 
     if args.subjective_logic_operators:
-        print(SLProbLog(p).run_SL())
+        outprint(SLProbLog(p, args.subjective_logic_output).run_SL())
     else:
-        print(SLProbLog(p).run_beta())
+        outprint(SLProbLog(p, args.subjective_logic_output).run_beta())

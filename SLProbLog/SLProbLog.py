@@ -150,10 +150,14 @@ class BetaSemiring(Semiring):
 
 class SLProbLog:
 
-    def __init__(self, program = None):
+    def __init__(self, program, sloutput = False):
         self._slproblog_program = program
+        self._slout = sloutput
 
-    def run_SL(self):
+    def _convert_input(self, to_sl = False, to_beta = False):
+        if to_sl and to_beta:
+            raise Exception("Cannot convert both to SL and to Beta")
+
         lines = self._slproblog_program.splitlines()
         newlines = []
         for l in lines:
@@ -161,28 +165,66 @@ class SLProbLog:
             if len(label_prolog) == 1:
                 newlines.append(l)
             elif len(label_prolog) == 2:
-                b = BetaSemiring().parse(label_prolog[0])
-                wb = b.to_sl_opinion()
-                newlines.append("w(%s,%s,%s,%s)::%s" % (mpmath.nstr(wb[0]),
-                                                        mpmath.nstr(wb[1]),
-                                                        mpmath.nstr(wb[2]),
-                                                        mpmath.nstr(wb[3]),
-                                                        label_prolog[1]))
+                if to_sl:
+                    if label_prolog[0][0] == "b":
+                        b = BetaSemiring().parse(label_prolog[0])
+                        wb = b.to_sl_opinion()
+                        newlines.append("w(%s,%s,%s,%s)::%s" % (mpmath.nstr(wb[0]),
+                                                                mpmath.nstr(wb[1]),
+                                                                mpmath.nstr(wb[2]),
+                                                                mpmath.nstr(wb[3]),
+                                                                label_prolog[1]))
+
+                    elif label_prolog[0][0] == "w":
+                        newlines.append(l)
+
+                    else:
+                        raise Exception("Problem with this line: %s" % (l))
+
+
+                elif to_beta:
+                    if label_prolog[0][0] == "w":
+                        w = SLSemiring().parse(label_prolog[0])
+                        bw = from_sl_opinion(w)
+                        newlines.append("%s::%s" % (repr(bw), label_prolog[1]))
+
+                    elif label_prolog[0][0] == "b":
+                        newlines.append(l)
+
+                    else:
+                        raise Exception("Problem with this line: %s" % (l))
+
             else:
                 raise Exception("Problem with this line: %s" % (l))
 
-        program = "\n".join(newlines)
+        return "\n".join(newlines)
 
-        res = self._run_sl_operators_on_semiring(SLSemiring(), program)
+    def _convert_output(self, res, to_sl = False, to_beta = False):
+        if to_sl and to_beta:
+            raise Exception("Cannot convert both to SL and to Beta")
 
         ret = {}
-        for k,v in res.items():
-            ret[k] = from_sl_opinion(v)
+        for k, v in res.items():
+            if to_sl and isinstance(v, BetaDistribution):
+                ret[k] = v.to_sl_opinion()
+            elif to_beta and isinstance(v, list):
+                ret[k] = from_sl_opinion(v)
 
         return ret
 
+
+    def run_SL(self):
+        res = self._run_sl_operators_on_semiring(SLSemiring(), self._convert_input(to_sl = True))
+        if self._slout:
+            return res
+        return self._convert_output(res, to_beta = True)
+
     def run_beta(self):
-        return self._run_sl_operators_on_semiring(BetaSemiring())
+        res = self._run_sl_operators_on_semiring(BetaSemiring(), self._convert_input(to_beta = True))
+        if self._slout:
+            return self._convert_output(res, to_sl=True)
+        return res
+
 
     def _run_sl_operators_on_semiring(self, givensemiring, program = None):
         engine = DefaultEngine()
