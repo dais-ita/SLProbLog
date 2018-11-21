@@ -21,30 +21,59 @@ THE SOFTWARE.
 """
 
 
-from unittest import TestCase
-from SLProbLog.SLProbLog import BetaDistribution
-import mpmath
+import sys
+sys.path.append('../')
 
-class TestBetaDistribution(TestCase):
-    def setUp(self):
-        self.a = BetaDistribution(0.3, 0.3)
-        self.b = BetaDistribution(0.4, 0.2)
-        self.la = BetaDistribution("0.33333333333333", "0.2")
+from experiment.experimental_setting import Experiment
+e = Experiment()
 
-    def test_sum(self):
-        self.assertTrue(mpmath.almosteq(self.a.mean()+self.b.mean(), (self.a.sum(self.b)).mean()))
 
-    def test_product(self):
-        self.assertTrue(mpmath.almosteq(self.a.mean() * self.b.mean(), (self.a.product(self.b)).mean()))
+model="""
+${p1}::stress(X) :- person(X).
+${p2}::influences(X,Y) :- person(X), person(Y).
 
-    def test_negate(self):
-        self.assertTrue(mpmath.almosteq(1 - self.a.mean(), self.a.negate().mean()))
+smokes(X) :- stress(X).
+smokes(X) :- friend(X,Y), influences(Y,X), smokes(Y).
 
-    def test_conditioning(self):
-        self.assertTrue(mpmath.almosteq(self.a.mean() / self.b.mean(), (self.a.conditioning(self.b)).mean()))
+${p5}::asthma(X) :- smokes(X).
 
-    def test_repr(self):
-        self.assertEqual(self.a.__repr__(), 'b(0.3,0.3)')
+person(1).
+person(2).
+person(3).
+person(4).
 
-    def test_repr_long(self):
-        self.assertEqual(self.la.__repr__(), 'b(0.33333333333333,0.2)')
+friend(1,2).
+friend(2,1).
+friend(2,4).
+friend(3,2).
+friend(4,2).
+
+evidence(smokes(2),true).
+evidence(influences(4,2),false).
+
+query(smokes(1)).
+query(smokes(3)).
+query(smokes(4)).
+query(asthma(1)).
+query(asthma(2)).
+query(asthma(3)).
+query(asthma(4)).
+"""
+
+e.setup("smoker-evidence-Nins10", model, 10, 100, [10], bn=False)
+
+e.run()
+
+e.analise()
+
+e.setup("smoker-evidence-Nins50", model, 10, 100, [50], bn=False)
+
+e.run()
+
+e.analise()
+
+e.setup("smoker-evidence-Nins100", model, 10, 100, [100], bn=False)
+
+e.run()
+
+e.analise()

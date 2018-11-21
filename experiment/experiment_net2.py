@@ -21,30 +21,29 @@ THE SOFTWARE.
 """
 
 
-from unittest import TestCase
-from SLProbLog.SLProbLog import BetaDistribution
-import mpmath
+import sys
+sys.path.append('../')
 
-class TestBetaDistribution(TestCase):
-    def setUp(self):
-        self.a = BetaDistribution(0.3, 0.3)
-        self.b = BetaDistribution(0.4, 0.2)
-        self.la = BetaDistribution("0.33333333333333", "0.2")
+from experiment.experimental_setting import Experiment
 
-    def test_sum(self):
-        self.assertTrue(mpmath.almosteq(self.a.mean()+self.b.mean(), (self.a.sum(self.b)).mean()))
+fname="networks/net2.file"
 
-    def test_product(self):
-        self.assertTrue(mpmath.almosteq(self.a.mean() * self.b.mean(), (self.a.product(self.b)).mean()))
+e = Experiment()
 
-    def test_negate(self):
-        self.assertTrue(mpmath.almosteq(1 - self.a.mean(), self.a.negate().mean()))
 
-    def test_conditioning(self):
-        self.assertTrue(mpmath.almosteq(self.a.mean() / self.b.mean(), (self.a.conditioning(self.b)).mean()))
+e.setup("net2-Nins-10", fname, 10, 100, [10])
+e.run()
+e.analise()
 
-    def test_repr(self):
-        self.assertEqual(self.a.__repr__(), 'b(0.3,0.3)')
+print("")
 
-    def test_repr_long(self):
-        self.assertEqual(self.la.__repr__(), 'b(0.33333333333333,0.2)')
+
+e.setup("net2-Nins-50", fname, 10, 100, [50])
+e.run()
+e.analise()
+
+print("")
+
+e.setup("net2-Nins-100", fname, 10, 100, [100])
+e.run()
+e.analise()

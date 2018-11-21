@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 import argparse
 import mpmath
-from BetaDistribution.BetaDistribution import BetaDistribution
+from SLProbLog.SLProbLog import BetaDistribution
 
 from SLProbLog.SLProbLog import SLProbLog
 
