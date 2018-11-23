@@ -26,7 +26,8 @@ from problog.program import PrologString
 from problog import get_evaluatable
 import mpmath
 
-EPSILON = 10e-4
+EPSILON = 10e-100
+mpmath.dps = 200
 
 def from_sl_opinion(wb, W = 2):
     prior = mpmath.mpf(W)
@@ -42,13 +43,27 @@ def from_sl_opinion(wb, W = 2):
     if mpmath.almosteq(mpmath.mpf("0"), belief, EPSILON):
         belief = mpmath.mpf(EPSILON)
 
-    alpha = prior / uncertainty * belief + prior * base
-    beta = prior / uncertainty * disbelief + prior * (1 - base)
-
-    mean = alpha / (alpha + beta)
-    variance = (alpha * beta) / ((alpha + beta) ** 2 * alpha + beta + 1)
+    mean = belief + uncertainty * base
+    sx = prior / uncertainty
+    variance = mean * (1- mean) / (sx + 1)
 
     return BetaDistribution(mean, variance)
+
+
+def moment_matching(b):
+    m = b.mean()
+    v = b.variance()
+    if v == 0:
+        var = mpmath.mpf(1e-10)
+    else:
+        var = mpmath.mpf(v)
+
+    mean = min(mpmath.mpf(1), max(mpmath.mpf(0), mpmath.mpf(m)))
+
+    sx = ((mean * (1 - mean)) / var - 1)
+
+    return BetaDistribution(mean, (mean * (1-mean) / (sx + 1) ))
+
 
 class BetaDistribution():
 
@@ -127,6 +142,12 @@ class BetaDistribution():
 
     def __repr__(self):
         return "b(%s,%s)" % (mpmath.nstr(self.mean(), mpmath.mp.dps), mpmath.nstr(self.variance(), mpmath.mp.dps))
+
+    def mean_str(self):
+        return mpmath.nstr(self.mean(), mpmath.mp.dps)
+
+    def variance_str(self):
+        return mpmath.nstr(self.variance(), mpmath.mp.dps)
 
     def to_sl_opinion(self, a = 1/2, W=2):
         rx = max(mpmath.mpf(0), self.alpha() - a * W)
@@ -207,7 +228,7 @@ class BetaSemiring(Semiring):
     def parse(self, w):
         start = str(w).find('(') + 1
         end = str(w).find(')')
-        parsed = [float(x) for x in str(w)[start:end].replace(" ","").split(',')]
+        parsed = [mpmath.mpf(x) for x in str(w)[start:end].replace(" ","").split(',')]
         return BetaDistribution(parsed[0], parsed[1])
 
     def one(self):
@@ -235,9 +256,7 @@ class BetaSemiring(Semiring):
 
     def _to_str(self, r):
         wr = self.parse(r)
-        ra = float(wr.mean())
-        rb = float(wr.variance())
-        return "b(%s,%s)" % (str(ra), str(rb))
+        return wr.__repr__()
 
     def normalize(self, a, z):
         wa = self.parse(a)
@@ -343,7 +362,10 @@ class SLProbLog:
 
         ret = {}
         for k, v in res.items():
-            ret[k] = semiring.parse(v)
+            if isinstance(semiring, BetaSemiring):
+                ret[k] = moment_matching(semiring.parse(v))
+            else:
+                ret[k] = semiring.parse(v)
 
         return self._order_dicts(ret)
 
